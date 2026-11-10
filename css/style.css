@@ -1,0 +1,917 @@
+/* ==========================================================================
+   Reverse Song Battle - Apple iOS Design System (Dark Mode HIG)
+   ========================================================================== */
+
+:root {
+  /* iOS System Colors (Dark Mode) */
+  --ios-bg: #000000;
+  --ios-card: #1c1c1e;
+  --ios-card-hover: #2c2c2e;
+  --ios-input-bg: #2c2c2e;
+  --ios-separator: rgba(255, 255, 255, 0.12);
+  --ios-border: rgba(255, 255, 255, 0.08);
+
+  /* iOS System Blue (Standard Action Color) */
+  --ios-blue: #0A84FF;
+  --ios-blue-pressed: #0071E3;
+  --ios-blue-subtle: rgba(10, 132, 255, 0.15);
+
+  /* iOS Text Colors */
+  --ios-label: #ffffff;
+  --ios-secondary-label: #8e8e93;
+  --ios-tertiary-label: #636366;
+  --ios-destructive: #ff453a;
+
+  /* Typography Stack */
+  --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Metrics & Radii */
+  --radius-card: 14px;
+  --radius-btn: 12px;
+  --radius-pill: 999px;
+  --spring-easing: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-stack);
+  background-color: var(--ios-bg);
+  color: var(--ios-label);
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic Viewport Height for Mobile Safari */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-x: hidden;
+  /* iPhone Safe Area Insets (Notch, Dynamic Island, Home Bar) */
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-bottom: max(32px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  -webkit-font-smoothing: antialiased;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior-y: none;
+}
+
+input, textarea, select {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* App Container */
+.app-container {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+/* ==========================================================================
+   iOS Top Navigation Bar (Floating Liquid Pill)
+   ========================================================================== */
+.ios-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  width: 100%;
+  max-width: 440px;
+  padding: 0 12px;
+  margin: 4px auto 6px;
+  position: sticky;
+  top: max(6px, env(safe-area-inset-top));
+  z-index: 900;
+  background: rgba(28, 28, 30, 0.75);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  border-radius: var(--radius-pill);
+  border: 0.5px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25);
+}
+
+.ios-nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--ios-blue);
+  font-family: var(--font-stack);
+  font-size: 17px;
+  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 8px 6px;
+  border-radius: 8px;
+  transition: opacity 0.15s ease;
+}
+
+.ios-nav-btn:active {
+  opacity: 0.4;
+}
+
+.ios-nav-btn svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
+.ios-nav-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ios-label);
+  text-align: center;
+  letter-spacing: -0.4px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   App Header (Home Screen Hero)
+   ========================================================================== */
+.app-header {
+  text-align: center;
+  padding: 24px 0 12px;
+}
+
+.app-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ios-blue-subtle);
+  color: var(--ios-blue);
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  margin-bottom: 12px;
+}
+
+.app-badge svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.app-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  color: var(--ios-label);
+  line-height: 1.15;
+}
+
+.app-tagline {
+  color: var(--ios-secondary-label);
+  font-size: 15px;
+  margin-top: 6px;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+}
+
+/* ==========================================================================
+   Scoreboard (iOS Inset Pill Bar)
+   ========================================================================== */
+.game-scoreboard {
+  background: rgba(28, 28, 30, 0.75);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.2);
+}
+
+.score-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.score-player.active .score-player-name {
+  color: var(--ios-blue);
+}
+
+.score-player-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ios-secondary-label);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.score-player-points {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ios-label);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.score-vs {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ios-tertiary-label);
+  padding: 0 14px;
+}
+
+/* ==========================================================================
+   Screen Cards (iOS Frosted Glass Grouped)
+   ========================================================================== */
+.screen {
+  display: none;
+  background: rgba(28, 28, 30, 0.85);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  padding: 22px 18px;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.15);
+  animation: iosScreenFade 0.22s var(--spring-easing);
+}
+
+.screen.active {
+  display: flex;
+}
+
+@keyframes iosScreenFade {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.screen-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--ios-label);
+  text-align: center;
+}
+
+.screen-subtitle {
+  font-size: 15px;
+  color: var(--ios-secondary-label);
+  text-align: center;
+  margin-top: -8px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+/* ==========================================================================
+   iOS Segmented Control
+   ========================================================================== */
+.segmented-control {
+  display: flex;
+  background: rgba(120, 120, 128, 0.24);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.segment-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--ios-label);
+  padding: 8px 12px;
+  font-family: var(--font-stack);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s var(--spring-easing);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.segment-btn.active {
+  background: #636366;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.segment-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+/* ==========================================================================
+   Forms & Text Inputs (iOS Inset Style)
+   ========================================================================== */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ios-secondary-label);
+  letter-spacing: -0.1px;
+}
+
+.text-input, .select-input {
+  background: var(--ios-input-bg);
+  border: 0.5px solid var(--ios-separator);
+  border-radius: 10px;
+  color: var(--ios-label);
+  padding: 12px 14px;
+  font-family: var(--font-stack);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.text-input:focus, .select-input:focus {
+  border-color: var(--ios-blue);
+}
+
+/* ==========================================================================
+   Unified Single-Color iOS Buttons
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-stack);
+  font-size: 17px;
+  font-weight: 600;
+  padding: 12px 20px;
+  min-height: 48px; /* Apple HIG minimum touch target */
+  touch-action: manipulation;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: transform 0.15s var(--spring-easing), opacity 0.15s ease, background-color 0.15s ease;
+  width: 100%;
+}
+
+.btn:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+.btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+/* Single-Color iOS Filled Blue Button */
+.btn-primary {
+  background-color: var(--ios-blue);
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(10, 132, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.btn-primary:hover {
+  background-color: var(--ios-blue-pressed);
+}
+
+/* Clean Neutral Secondary Button */
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 0.5px solid var(--ios-separator);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.btn-sm {
+  padding: 9px 14px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.btn-sm svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ==========================================================================
+   Recording Section (iOS Voice Memos Aesthetic)
+   ========================================================================== */
+.record-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 10px 0;
+}
+
+.btn-record {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--ios-blue);
+  border: 4px solid #1c1c1e;
+  box-shadow: 0 0 0 2px var(--ios-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.2s var(--spring-easing), background-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+.btn-record:active {
+  transform: scale(0.92);
+}
+
+.btn-record svg {
+  width: 36px;
+  height: 36px;
+  fill: #ffffff;
+}
+
+.btn-record.recording {
+  background: var(--ios-destructive);
+  box-shadow: 0 0 0 3px var(--ios-destructive);
+  animation: iosPulse 1.4s infinite;
+}
+
+@keyframes iosPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.record-timer {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--ios-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.visualizer-canvas {
+  width: 100%;
+  height: 60px;
+  border-radius: 10px;
+  background: #000000;
+  border: 0.5px solid var(--ios-separator);
+}
+
+/* ==========================================================================
+   Audio Cards & Speed Controls
+   ========================================================================== */
+.audio-action-card {
+  background: #000000;
+  border: 0.5px solid var(--ios-separator);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.audio-action-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.audio-action-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ios-label);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audio-action-title svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--ios-blue);
+}
+
+.playback-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.speed-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 0.5px solid var(--ios-separator);
+  color: var(--ios-secondary-label);
+  font-family: var(--font-stack);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.speed-toggle.active {
+  background: var(--ios-blue);
+  color: #ffffff;
+  border-color: var(--ios-blue);
+}
+
+/* Mimic Box */
+.mimic-box {
+  background: rgba(10, 132, 255, 0.06);
+  border: 0.5px solid var(--ios-blue);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mimic-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ios-blue);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.mimic-box-header svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* ==========================================================================
+   Scoring Verdict Buttons
+   ========================================================================== */
+.verdict-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.verdict-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border-radius: var(--radius-btn);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-stack);
+  font-weight: 700;
+  font-size: 16px;
+  transition: transform 0.15s var(--spring-easing), opacity 0.15s ease;
+  color: #ffffff;
+}
+
+.verdict-btn svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+.verdict-btn span {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.verdict-btn:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+.verdict-got {
+  background-color: #30d158;
+}
+
+.verdict-not-got {
+  background-color: var(--ios-destructive);
+}
+
+/* ==========================================================================
+   Pass Curtain
+   ========================================================================== */
+.pass-phone-icon {
+  font-size: 56px;
+  text-align: center;
+  padding: 14px 0;
+}
+
+/* ==========================================================================
+   Room Code Badge (Lobby)
+   ========================================================================== */
+.room-code-badge {
+  background: #000000;
+  border: 1px dashed var(--ios-blue);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+
+.room-code-text {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 5px;
+  color: var(--ios-blue);
+  user-select: all;
+  font-variant-numeric: tabular-nums;
+}
+
+.room-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ios-secondary-label);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffd60a;
+}
+
+.status-dot.connected {
+  background: #30d158;
+}
+
+/* ==========================================================================
+   Leaderboard (iOS Inset Grouped Table View)
+   ========================================================================== */
+.leaderboard-card {
+  background: #000000;
+  border: 0.5px solid var(--ios-separator);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.leaderboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.leaderboard-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  color: var(--ios-secondary-label);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leaderboard-title svg {
+  width: 14px;
+  height: 14px;
+  fill: #ffd60a;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 0.5px solid var(--ios-separator);
+  font-size: 15px;
+}
+
+.leaderboard-item:last-child {
+  border-bottom: none;
+}
+
+.leaderboard-rank {
+  font-weight: 600;
+  width: 28px;
+  color: var(--ios-tertiary-label);
+}
+
+.leaderboard-item:nth-child(1) .leaderboard-rank {
+  color: #ffd60a;
+}
+
+.leaderboard-player {
+  flex: 1;
+  font-weight: 500;
+  color: var(--ios-label);
+}
+
+.leaderboard-pts {
+  font-weight: 600;
+  color: var(--ios-blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-leaderboard {
+  text-align: center;
+  color: var(--ios-tertiary-label);
+  font-size: 13px;
+  padding: 12px 0;
+}
+
+/* ==========================================================================
+   Winner Screen
+   ========================================================================== */
+.winner-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+}
+
+.winner-svg {
+  width: 72px;
+  height: 72px;
+  fill: #ffd60a;
+}
+
+.winner-name {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ios-label);
+  letter-spacing: -0.5px;
+}
+
+/* ==========================================================================
+   iOS Alert Controller Modal
+   ========================================================================== */
+.ios-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ios-modal-overlay.active {
+  display: flex;
+  animation: iosAlertPop 0.2s var(--spring-easing);
+}
+
+@keyframes iosAlertPop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ios-alert-box {
+  background: rgba(36, 36, 38, 0.95);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 280px;
+  text-align: center;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+
+.ios-alert-content {
+  padding: 20px 16px 16px;
+}
+
+.ios-alert-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ios-label);
+  margin-bottom: 4px;
+}
+
+.ios-alert-message {
+  font-size: 13px;
+  color: var(--ios-secondary-label);
+  line-height: 1.35;
+}
+
+.ios-alert-actions {
+  display: flex;
+  border-top: 0.5px solid var(--ios-separator);
+}
+
+.ios-alert-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--ios-blue);
+  font-family: var(--font-stack);
+  font-size: 17px;
+  font-weight: 400;
+  padding: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.ios-alert-btn:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ios-alert-btn.destructive {
+  color: var(--ios-destructive);
+  font-weight: 600;
+  border-left: 0.5px solid var(--ios-separator);
+}
+
+/* ==========================================================================
+   Toast Banner (iOS Dynamic Island Style)
+   ========================================================================== */
+.toast-banner {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1c1c1e;
+  border: 0.5px solid var(--ios-separator);
+  border-radius: var(--radius-pill);
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ios-label);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: none;
+  animation: iosToastIn 0.25s var(--spring-easing);
+  white-space: nowrap;
+}
+
+@keyframes iosToastIn {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ==========================================================================
+   iPhone Footnote Tip
+   ========================================================================== */
+.ios-footnote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ios-secondary-label);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+  padding: 4px 10px;
+}
+
+.ios-footnote svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  flex-shrink: 0;
+}

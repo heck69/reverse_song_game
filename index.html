@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Reverse Song" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>Reverse Song Battle</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- External CDNs for Serverless WebRTC, Supabase Client & Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+  <!-- iOS Dynamic Island Toast -->
+  <div class="toast-banner" id="toast-banner">Notification</div>
+
+  <!-- iOS Alert Controller Modal (Leave Game Confirmation) -->
+  <div class="ios-modal-overlay" id="ios-modal-overlay">
+    <div class="ios-alert-box">
+      <div class="ios-alert-content">
+        <h3 class="ios-alert-title">Leave Match?</h3>
+        <p class="ios-alert-message">Active round progress will be lost and you will return to setup.</p>
+      </div>
+      <div class="ios-alert-actions">
+        <button type="button" class="ios-alert-btn" id="btn-alert-cancel">Cancel</button>
+        <button type="button" class="ios-alert-btn destructive" id="btn-alert-confirm">Leave Match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS Top Navigation Bar (UINavigationBar) -->
+  <nav class="ios-nav-bar" id="ios-nav-bar" style="display: none;">
+    <button type="button" class="ios-nav-btn" id="btn-ios-back" aria-label="Go Back">
+      <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      <span>Back</span>
+    </button>
+    <div class="ios-nav-title" id="ios-nav-title">Match Setup</div>
+    <div style="display: flex; align-items: center; gap: 4px;">
+      <button type="button" class="ios-nav-btn" id="btn-ios-history" aria-label="Match History" title="Match History">
+        <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+      </button>
+      <button type="button" class="ios-nav-btn" id="btn-ios-home" aria-label="Return to Home">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="app-container">
+    <!-- Header (Hero) -->
+    <header class="app-header" id="app-header">
+      <div class="app-badge">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+        <span>2-Player Battle</span>
+      </div>
+      <h1 class="app-title">Reverse Song</h1>
+      <p class="app-tagline">Sing forward. Decode backward.</p>
+    </header>
+
+    <!-- Scoreboard (Visible during active gameplay) -->
+    <div class="game-scoreboard" id="game-scoreboard" style="display: none;">
+      <div class="score-player" id="score-p1-box">
+        <div class="score-player-name" id="score-p1-name">Player 1</div>
+        <div class="score-player-points" id="score-p1-pts">0</div>
+      </div>
+      <div class="score-vs">VS</div>
+      <div class="score-player" id="score-p2-box">
+        <div class="score-player-name" id="score-p2-name">Player 2</div>
+        <div class="score-player-points" id="score-p2-pts">0</div>
+      </div>
+    </div>
+
+    <!-- SCREEN 0: Authentication (Sign In & Sign Up) -->
+    <div class="screen active" id="screen-auth">
+      <!-- Sign In Form (Default) -->
+      <div id="auth-login-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <h2 class="screen-title">Sign In</h2>
+        <p class="screen-subtitle">Sign in to save your score and match history</p>
+
+        <div class="input-group">
+          <label class="input-label" for="login-username">Username</label>
+          <input type="text" id="login-username" class="text-input" placeholder="e.g. Alice" maxlength="24" autocomplete="username" />
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="login-password">Password</label>
+          <input type="password" id="login-password" class="text-input" placeholder="Enter password" maxlength="32" autocomplete="current-password" />
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-submit-login">
+          <span>Sign In</span>
+        </button>
+
+        <div style="display: flex; justify-content: center; align-items: center; margin-top: 2px;">
+          <button type="button" class="ios-nav-btn" id="btn-open-recovery" style="font-size: 13px; padding: 4px 0;">Forgot Password or Username?</button>
+        </div>
+
+        <div style="text-align: center; margin-top: 6px; border-top: 0.5px solid var(--ios-separator); padding-top: 14px;">
+          <span style="font-size: 14px; color: var(--ios-secondary-label);">New here? </span>
+          <button type="button" class="ios-nav-btn" id="btn-to-signup" style="font-size: 14px; font-weight: 600; padding: 0;">Sign Up</button>
+        </div>
+
+        <div style="text-align: center; margin-top: 2px;">
+          <button type="button" class="ios-nav-btn" id="btn-guest-login" style="font-size: 12px; color: var(--ios-tertiary-label); padding: 0;">Play Offline (No Cloud Save)</button>
+        </div>
+      </div>
+
+      <!-- Sign Up Form (With Custom Security Question & Answer) -->
+      <div id="auth-signup-form" style="display: none; flex-direction: column; gap: 14px;">
+        <h2 class="screen-title">Create Account</h2>
+        <p class="screen-subtitle">Set your login and custom recovery question</p>
+
+        <div class="input-group">
+          <label class="input-label" for="signup-username">Choose Username</label>
+          <input type="text" id="signup-username" class="text-input" placeholder="e.g. Alice" maxlength="24" />
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="signup-password">Choose Password</label>
+          <input type="password" id="signup-password" class="text-input" placeholder="Create a password" maxlength="32" />
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="signup-question">Custom Security Question</label>
+          <input type="text" id="signup-question" class="text-input" placeholder="e.g. What is my first pet's name?" maxlength="60" />
+        </div>
+        <div class="input-group">
+          <label class="input-label" for="signup-answer">Security Answer</label>
+          <input type="text" id="signup-answer" class="text-input" placeholder="e.g. Rocky" maxlength="40" />
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-submit-signup">
+          <span>Create Account</span>
+        </button>
+
+        <div style="text-align: center; margin-top: 6px; border-top: 0.5px solid var(--ios-separator); padding-top: 14px;">
+          <span style="font-size: 14px; color: var(--ios-secondary-label);">Already have an account? </span>
+          <button type="button" class="ios-nav-btn" id="btn-to-login" style="font-size: 14px; font-weight: 600; padding: 0;">Sign In</button>
+        </div>
+      </div>
+
+      <!-- Credential Recovery Sub-Card -->
+      <div id="auth-recovery-card" style="display: none; flex-direction: column; gap: 14px; background: rgba(0,0,0,0.5); border: 0.5px solid var(--ios-separator); border-radius: 14px; padding: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 14px; font-weight: 700; color: var(--ios-label);">Account Recovery</span>
+          <button type="button" class="ios-nav-btn" id="btn-close-recovery" style="font-size: 13px; padding: 0;">Back to Login</button>
+        </div>
+
+        <div class="segmented-control">
+          <button type="button" class="segment-btn active" id="btn-recov-tab-pwd">Forgot Password</button>
+          <button type="button" class="segment-btn" id="btn-recov-tab-user">Forgot Username</button>
+        </div>
+
+        <!-- Forgot Password Section -->
+        <div id="recov-pwd-section" style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="input-group">
+            <label class="input-label" for="recov-username">Enter Username</label>
+            <input type="text" id="recov-username" class="text-input" placeholder="Your username" />
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-fetch-question">Show My Security Question</button>
+          
+          <div id="recov-question-display" style="display: none; flex-direction: column; gap: 8px;">
+            <div style="font-size: 13px; color: var(--ios-blue); font-weight: 600;" id="recov-question-text">Question: ...</div>
+            <input type="text" id="recov-answer" class="text-input" placeholder="Your answer" />
+            <button type="button" class="btn btn-primary btn-sm" id="btn-reveal-pwd">Reveal My Password</button>
+          </div>
+        </div>
+
+        <!-- Forgot Username Section (Direct Answer Lookup) -->
+        <div id="recov-user-section" style="display: none; flex-direction: column; gap: 10px;">
+          <div class="input-group">
+            <label class="input-label" for="recov-direct-answer">Enter Your Security Answer</label>
+            <input type="text" id="recov-direct-answer" class="text-input" placeholder="The answer you typed during signup" />
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-reveal-username">Find My Account</button>
+        </div>
+
+        <!-- Result Box -->
+        <div id="recov-result-box" style="display: none; background: rgba(10, 132, 255, 0.12); border: 0.5px solid var(--ios-blue); border-radius: 10px; padding: 12px; font-size: 14px; line-height: 1.4;">
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 1: Home Setup -->
+    <div class="screen" id="screen-home">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 13px; color: var(--ios-secondary-label); font-weight: 500;" id="home-user-greeting">Signed in</span>
+        <button type="button" class="ios-nav-btn" id="btn-signout" style="font-size: 13px; padding: 0; color: var(--ios-destructive);">Log Out</button>
+      </div>
+
+      <h2 class="screen-title">New Game</h2>
+      <p class="screen-subtitle">Select game mode and enter player names</p>
+
+      <div class="segmented-control">
+        <button type="button" class="segment-btn active" id="btn-mode-single">
+          <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+          1 Device
+        </button>
+        <button type="button" class="segment-btn" id="btn-mode-multi">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          2 Devices
+        </button>
+      </div>
+
+      <!-- Player Names Form -->
+      <div class="input-group">
+        <label class="input-label" id="label-player-1" for="input-p1-name">Player 1</label>
+        <input type="text" id="input-p1-name" class="text-input" placeholder="e.g. Alice" value="Player 1" maxlength="20" />
+      </div>
+
+      <div class="input-group" id="group-p2-name">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label class="input-label" for="input-p2-name">Player 2</label>
+          <span style="font-size: 11px; color: var(--ios-blue); display: none;" id="p2-link-badge">✓ Supabase Account Linked</span>
+        </div>
+        <input type="text" id="input-p2-name" class="text-input" placeholder="e.g. Bob" value="Player 2" maxlength="20" />
+      </div>
+
+      <!-- 2-Device Specific Controls -->
+      <div id="multiplayer-options" style="display: none; flex-direction: column; gap: 12px;">
+        <div class="segmented-control">
+          <button type="button" class="segment-btn active" id="btn-multi-create">Create Room</button>
+          <button type="button" class="segment-btn" id="btn-multi-join">Join Room</button>
+        </div>
+
+        <div class="input-group" id="group-join-code" style="display: none;">
+          <label class="input-label" for="input-room-code">Room Code</label>
+          <input type="text" id="input-room-code" class="text-input" placeholder="e.g. SING" maxlength="6" style="text-transform: uppercase; letter-spacing: 3px; font-weight: 700; text-align: center;" />
+        </div>
+      </div>
+
+      <!-- Game Goal / Target Score -->
+      <div class="input-group">
+        <label class="input-label" for="select-target-score">Winning Condition</label>
+        <select id="select-target-score" class="select-input">
+          <option value="3">First to 3 Points</option>
+          <option value="5" selected>First to 5 Points (Recommended)</option>
+          <option value="7">First to 7 Points</option>
+          <option value="10">First to 10 Points</option>
+          <option value="0">Endless Mode (No limit)</option>
+        </select>
+      </div>
+
+      <button type="button" class="btn btn-primary" id="btn-start-match">
+        <span>Start Game</span>
+      </button>
+
+      <!-- Persistent Leaderboard -->
+      <div class="leaderboard-card">
+        <div class="leaderboard-header">
+          <span class="leaderboard-title">
+            <svg viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
+            Leaderboard
+          </span>
+          <button type="button" class="ios-nav-btn" id="btn-reset-leaderboard" style="font-size: 13px; padding: 0;">Reset</button>
+        </div>
+        <div class="leaderboard-list" id="leaderboard-list">
+          <div class="empty-leaderboard">No scores recorded yet.</div>
+        </div>
+      </div>
+
+      <!-- iPhone Audio Tip Footnote -->
+      <div class="ios-footnote">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+        <span>iPhone Tip: Make sure Silent Mode switch is OFF to hear audio.</span>
+      </div>
+    </div>
+
+    <!-- SCREEN: Match History Tab Screen -->
+    <div class="screen" id="screen-history">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="screen-title" style="text-align: left; margin: 0;">Match History</h2>
+        <button type="button" class="ios-nav-btn" id="btn-close-history" style="font-size: 14px;">Done</button>
+      </div>
+      <p class="screen-subtitle" style="text-align: left; margin-top: -6px;">Past battles recorded in Supabase</p>
+
+      <div class="leaderboard-card" style="max-height: 400px; overflow-y: auto;">
+        <div id="history-items-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="empty-leaderboard">No matches recorded in cloud yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: 2-Device Waiting Lobby -->
+    <div class="screen" id="screen-lobby">
+      <h2 class="screen-title">Waiting Room</h2>
+      <p class="screen-subtitle">Ask Player 2 to join with this code</p>
+
+      <div class="room-code-badge">
+        <div style="font-size: 12px; font-weight: 600; color: var(--ios-secondary-label); text-transform: uppercase; margin-bottom: 4px;">Room Code</div>
+        <div class="room-code-text" id="display-room-code">----</div>
+      </div>
+
+      <div style="text-align: center;">
+        <span class="room-status-indicator">
+          <span class="status-dot" id="lobby-status-dot"></span>
+          <span id="lobby-status-text">Waiting for connection...</span>
+        </span>
+      </div>
+
+      <button type="button" class="btn btn-secondary" id="btn-copy-room-code">
+        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        <span>Copy Code</span>
+      </button>
+    </div>
+
+    <!-- SCREEN 3: Turn Announcement / Coin Flip -->
+    <div class="screen" id="screen-coinflip">
+      <div style="text-align: center; padding: 20px 0;">
+        <div style="width: 64px; height: 64px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; background: var(--ios-blue-subtle); border-radius: 50%;">
+          <svg style="width: 32px; height: 32px; fill: var(--ios-blue);" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        </div>
+        <h2 class="screen-title" id="coinflip-title">Selecting Singer...</h2>
+        <p class="screen-subtitle" id="coinflip-result" style="font-size: 17px; color: var(--ios-blue); font-weight: 600; margin-top: 10px;"></p>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-proceed-to-singer">
+        <span>Continue</span>
+        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+      </button>
+    </div>
+
+    <!-- SCREEN 4: Singer Recording Phase -->
+    <div class="screen" id="screen-singer">
+      <h2 class="screen-title" id="singer-title">Sing a Song</h2>
+      <p class="screen-subtitle">Sing a short lyric or catchy chorus</p>
+
+      <div class="record-section">
+        <button type="button" class="btn-record" id="btn-singer-record" aria-label="Record Audio">
+          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+        </button>
+        <div class="record-timer" id="singer-timer">00:00</div>
+        <div style="font-size: 13px; color: var(--ios-secondary-label);" id="singer-record-hint">Tap microphone to begin</div>
+        <canvas class="visualizer-canvas" id="singer-canvas" width="400" height="60"></canvas>
+      </div>
+
+      <!-- Preview controls after recording -->
+      <div id="singer-preview-section" style="display: none; flex-direction: column; gap: 12px;">
+        <div class="audio-action-card">
+          <div class="audio-action-header">
+            <span class="audio-action-title">
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              Review Recording
+            </span>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-singer-playback">
+            <span>Play My Recording</span>
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" id="btn-singer-rerecord" style="flex: 1;">
+            <span>Re-record</span>
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-singer-submit" style="flex: 2;">
+            <span>Send to Guesser</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: Pass the Phone Curtain (Pass & Play Only) -->
+    <div class="screen" id="screen-pass">
+      <div style="text-align: center; padding: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+        <div class="pass-phone-icon">📱</div>
+        <h2 class="screen-title" id="pass-title">Pass the Device</h2>
+        <p class="screen-subtitle">Pass the phone to Player 2. Audio is flipped backward!</p>
+        <button type="button" class="btn btn-primary" id="btn-pass-ready" style="margin-top: 10px;">
+          <span>I'm Ready to Guess</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- SCREEN 6: Guesser Phase (Reverse Audio & Mimic Verification) -->
+    <div class="screen" id="screen-guesser">
+      <h2 class="screen-title" id="guesser-title">Decode the Song</h2>
+      <p class="screen-subtitle">Listen to the reversed audio clip</p>
+
+      <!-- Primary Reversed Audio Player -->
+      <div class="audio-action-card">
+        <div class="audio-action-header">
+          <span class="audio-action-title">
+            <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+            Reversed Clip
+          </span>
+          <div class="playback-controls">
+            <button type="button" class="speed-toggle active" id="btn-speed-normal">1.0x</button>
+            <button type="button" class="speed-toggle" id="btn-speed-slow">0.75x</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-play-reversed">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span>Play Reversed Song</span>
+        </button>
+      </div>
+
+      <!-- Mimicry Verification Section -->
+      <div class="mimic-box">
+        <div class="mimic-box-header">
+          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+          <span>Mimic Verification</span>
+        </div>
+        <p style="font-size: 13px; color: var(--ios-secondary-label); line-height: 1.35;">
+          Sing the backward sounds you hear. Then play your mimic in reverse to check the real forward words!
+        </p>
+
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-guesser-mimic-record" style="width: auto;">
+            <span>Record Mimic</span>
+          </button>
+          <span style="font-size: 12px; color: var(--ios-tertiary-label);" id="mimic-status-text">Not recorded yet</span>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-play-mimic-rereversed" style="display: none; width: auto; color: var(--ios-blue);">
+            <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+            <span>Play Mimic Forward</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Ready to guess button -->
+      <button type="button" class="btn btn-primary" id="btn-guesser-ready-to-score">
+        <span>Proceed to Scoring</span>
+        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+      </button>
+    </div>
+
+    <!-- SCREEN 7: Scoring Verdict Phase -->
+    <div class="screen" id="screen-score">
+      <h2 class="screen-title" id="verdict-title">Did Player 2 Get It?</h2>
+      <p class="screen-subtitle" id="verdict-subtitle">Judge whether the guess was correct</p>
+
+      <div class="verdict-actions">
+        <button type="button" class="verdict-btn verdict-got" id="btn-verdict-got">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          Got It!
+          <span>(+1 Guesser)</span>
+        </button>
+        <button type="button" class="verdict-btn verdict-not-got" id="btn-verdict-not-got">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
+          Not Got It
+          <span>(-1 Guesser, +1 Singer)</span>
+        </button>
+      </div>
+
+      <!-- Compare Audio Section -->
+      <div class="audio-action-card" style="margin-top: 10px;">
+        <div class="audio-action-header">
+          <span class="audio-action-title">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+            Compare Tracks
+          </span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-play-original-compare" style="flex: 1;">Original Singer</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-play-mimic-compare" style="flex: 1;">Guesser's Mimic</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 8: Winner Celebration -->
+    <div class="screen" id="screen-winner">
+      <div class="winner-card">
+        <svg class="winner-svg" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
+        <h2 class="screen-title">Winner!</h2>
+        <div class="winner-name" id="winner-display-name">Player 1</div>
+        <p class="screen-subtitle" id="winner-summary">Won the battle!</p>
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+          <button type="button" class="btn btn-primary" id="btn-play-again">
+            <span>Play Again</span>
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-back-to-home">
+            <span>Return to Home</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic Scripts -->
+  <script src="js/supabase-config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
