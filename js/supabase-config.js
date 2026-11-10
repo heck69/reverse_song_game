@@ -31,7 +31,7 @@ class SupabaseManager {
     let anonKey = window.SUPABASE_CONFIG.anonKey;
 
     // Check localStorage fallback for local testing
-    if (url === '{{SUPABASE_URL}}' || !url) {
+    if (!url || url.includes('{{')) {
       url = localStorage.getItem('local_supabase_url') || url;
       anonKey = localStorage.getItem('local_supabase_anon_key') || anonKey;
     }
@@ -42,8 +42,8 @@ class SupabaseManager {
       supabaseFactory &&
       url &&
       anonKey &&
-      url !== '{{SUPABASE_URL}}' &&
-      anonKey !== '{{SUPABASE_ANON_KEY}}'
+      !url.includes('{{') &&
+      !anonKey.includes('{{')
     ) {
       try {
         this.client = supabaseFactory.createClient(url, anonKey);
@@ -59,11 +59,7 @@ class SupabaseManager {
 
   isConfigured() {
     this.initClient();
-    return (
-      this.client !== null &&
-      window.SUPABASE_CONFIG.url !== '{{SUPABASE_URL}}' &&
-      window.SUPABASE_CONFIG.anonKey !== '{{SUPABASE_ANON_KEY}}'
-    );
+    return this.client !== null;
   }
 
   loadSavedUserSession() {
