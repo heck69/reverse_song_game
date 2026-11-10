@@ -6,12 +6,10 @@
  * (Both can be found in your Supabase Dashboard under: Project Settings > API)
  */
 
+// Secure placeholders injected automatically by GitHub Actions Secrets on deploy
 window.SUPABASE_CONFIG = {
-  // 1. Paste your Project URL (e.g. 'https://xyzabcdefg.supabase.co')
-  url: 'YOUR_SUPABASE_PROJECT_URL_HERE',
-
-  // 2. Paste your Publishable Key (e.g. 'sb_publishable_...')
-  anonKey: 'YOUR_SUPABASE_PUBLISHABLE_KEY_HERE',
+  url: '{{SUPABASE_URL}}',
+  anonKey: '{{SUPABASE_ANON_KEY}}',
 };
 
 // ============================================================================
@@ -27,19 +25,28 @@ class SupabaseManager {
   }
 
   initClient() {
-    const config = window.SUPABASE_CONFIG;
-    // Check if user has pasted real keys
+    // 1. Check if injected via GitHub Actions
+    let url = window.SUPABASE_CONFIG.url;
+    let anonKey = window.SUPABASE_CONFIG.anonKey;
+
+    // 2. Local development fallback (check localStorage if set)
+    if (url === '{{SUPABASE_URL}}' || !url) {
+      url = localStorage.getItem('local_supabase_url') || url;
+      anonKey = localStorage.getItem('local_supabase_anon_key') || anonKey;
+    }
+
     if (
       window.supabase &&
-      config &&
-      config.url &&
-      config.anonKey &&
-      config.url !== 'YOUR_SUPABASE_PROJECT_URL_HERE' &&
-      config.anonKey !== 'YOUR_SUPABASE_PUBLISHABLE_KEY_HERE'
+      url &&
+      anonKey &&
+      url !== '{{SUPABASE_URL}}' &&
+      anonKey !== '{{SUPABASE_ANON_KEY}}'
     ) {
       try {
-        this.client = window.supabase.createClient(config.url, config.anonKey);
-        console.log('✅ Supabase connected successfully.');
+        this.client = window.supabase.createClient(url, anonKey);
+        window.SUPABASE_CONFIG.url = url;
+        window.SUPABASE_CONFIG.anonKey = anonKey;
+        console.log('✅ Supabase connected via GitHub Secrets.');
       } catch (err) {
         console.warn('Could not initialize Supabase client:', err);
       }
@@ -49,8 +56,8 @@ class SupabaseManager {
   isConfigured() {
     return (
       this.client !== null &&
-      window.SUPABASE_CONFIG.url !== 'YOUR_SUPABASE_PROJECT_URL_HERE' &&
-      window.SUPABASE_CONFIG.anonKey !== 'YOUR_SUPABASE_PUBLISHABLE_KEY_HERE'
+      window.SUPABASE_CONFIG.url !== '{{SUPABASE_URL}}' &&
+      window.SUPABASE_CONFIG.anonKey !== '{{SUPABASE_ANON_KEY}}'
     );
   }
 
