@@ -25,35 +25,40 @@ class SupabaseManager {
   }
 
   initClient() {
-    // 1. Check if injected via GitHub Actions
+    if (this.client) return this.client;
+
     let url = window.SUPABASE_CONFIG.url;
     let anonKey = window.SUPABASE_CONFIG.anonKey;
 
-    // 2. Local development fallback (check localStorage if set)
+    // Check localStorage fallback for local testing
     if (url === '{{SUPABASE_URL}}' || !url) {
       url = localStorage.getItem('local_supabase_url') || url;
       anonKey = localStorage.getItem('local_supabase_anon_key') || anonKey;
     }
 
+    const supabaseFactory = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+
     if (
-      window.supabase &&
+      supabaseFactory &&
       url &&
       anonKey &&
       url !== '{{SUPABASE_URL}}' &&
       anonKey !== '{{SUPABASE_ANON_KEY}}'
     ) {
       try {
-        this.client = window.supabase.createClient(url, anonKey);
+        this.client = supabaseFactory.createClient(url, anonKey);
         window.SUPABASE_CONFIG.url = url;
         window.SUPABASE_CONFIG.anonKey = anonKey;
-        console.log('✅ Supabase connected via GitHub Secrets.');
+        console.log('✅ Supabase connected successfully.');
       } catch (err) {
         console.warn('Could not initialize Supabase client:', err);
       }
     }
+    return this.client;
   }
 
   isConfigured() {
+    this.initClient();
     return (
       this.client !== null &&
       window.SUPABASE_CONFIG.url !== '{{SUPABASE_URL}}' &&
