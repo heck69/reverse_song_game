@@ -108,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Singer Elements
   const singerTitle = document.getElementById('singer-title');
+  const singerSubtitle = document.getElementById('singer-subtitle');
+  const singerRecordSection = document.getElementById('singer-record-section');
   const btnSingerRecord = document.getElementById('btn-singer-record');
   const singerTimer = document.getElementById('singer-timer');
   const singerRecordHint = document.getElementById('singer-record-hint');
@@ -116,6 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSingerPlayback = document.getElementById('btn-singer-playback');
   const btnSingerRerecord = document.getElementById('btn-singer-rerecord');
   const btnSingerSubmit = document.getElementById('btn-singer-submit');
+  const guesserWaitingSingerCard = document.getElementById('guesser-waiting-singer-card');
+  const guesserWaitingTitle = document.getElementById('guesser-waiting-title');
+  const guesserWaitingSubtitle = document.getElementById('guesser-waiting-subtitle');
+  const singerWaitingGuesserCard = document.getElementById('singer-waiting-guesser-card');
+  const singerWaitingTitle = document.getElementById('singer-waiting-title');
+  const singerWaitingSubtitle = document.getElementById('singer-waiting-subtitle');
 
   // Pass Elements
   const passTitle = document.getElementById('pass-title');
@@ -123,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Guesser Elements
   const guesserTitle = document.getElementById('guesser-title');
+  const guesserMainControls = document.getElementById('guesser-main-controls');
   const btnPlayReversed = document.getElementById('btn-play-reversed');
   const btnSpeedNormal = document.getElementById('btn-speed-normal');
   const btnSpeedSlow = document.getElementById('btn-speed-slow');
@@ -130,6 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const mimicStatusText = document.getElementById('mimic-status-text');
   const btnPlayMimicRereversed = document.getElementById('btn-play-mimic-rereversed');
   const btnGuesserReadyToScore = document.getElementById('btn-guesser-ready-to-score');
+  const guesserWaitingVerdictCard = document.getElementById('guesser-waiting-verdict-card');
+  const guesserVerdictSubtitle = document.getElementById('guesser-verdict-subtitle');
 
   // Scoring Elements
   const verdictTitle = document.getElementById('verdict-title');
@@ -145,6 +156,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPlayAgain = document.getElementById('btn-play-again');
   const btnBackToHome = document.getElementById('btn-back-to-home');
 
+  // Reconnection Modal Elements
+  const reconnectModalOverlay = document.getElementById('reconnect-modal-overlay');
+  const reconnectCountdown = document.getElementById('reconnect-countdown');
+  const btnReconnectLeave = document.getElementById('btn-reconnect-leave');
+
   // Toast
   const toastBanner = document.getElementById('toast-banner');
 
@@ -159,6 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentScreenKey = 'auth';
   let navStack = [];
   let p2DebounceTimer = null;
+  let reconnectInterval = null;
+  let reconnectSeconds = 30;
 
   const screenTitles = {
     auth: 'Sign In',
@@ -248,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnAlertConfirm.addEventListener('click', () => {
     iosModalOverlay.classList.remove('active');
+    stopReconnectTimer();
     if (window.gameEngine.mode === 'multiplayer') {
       window.networkManager.disconnect();
     }
@@ -255,6 +274,46 @@ document.addEventListener('DOMContentLoaded', () => {
     showScreen('home');
     showToast('Returned to Home');
   });
+
+  // Reconnection Grace Period Handlers
+  function startReconnectTimer() {
+    if (reconnectInterval) clearInterval(reconnectInterval);
+    reconnectSeconds = 30;
+    if (reconnectCountdown) reconnectCountdown.textContent = reconnectSeconds;
+    if (reconnectModalOverlay) reconnectModalOverlay.classList.add('active');
+
+    reconnectInterval = setInterval(() => {
+      reconnectSeconds--;
+      if (reconnectCountdown) reconnectCountdown.textContent = reconnectSeconds;
+      if (reconnectSeconds <= 0) {
+        stopReconnectTimer();
+        if (window.gameEngine.mode === 'multiplayer') {
+          window.networkManager.disconnect();
+        }
+        showScreen('home');
+        showToast('Opponent disconnected. Returned to Home.');
+      }
+    }, 1000);
+  }
+
+  function stopReconnectTimer() {
+    if (reconnectInterval) {
+      clearInterval(reconnectInterval);
+      reconnectInterval = null;
+    }
+    if (reconnectModalOverlay) reconnectModalOverlay.classList.remove('active');
+  }
+
+  if (btnReconnectLeave) {
+    btnReconnectLeave.addEventListener('click', () => {
+      stopReconnectTimer();
+      if (window.gameEngine.mode === 'multiplayer') {
+        window.networkManager.disconnect();
+      }
+      showScreen('home');
+      showToast('Match abandoned.');
+    });
+  }
 
   // ==========================================================================
   // Supabase Authentication & Recovery
@@ -622,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           window.networkManager.onConnectionStatusCallback = (connected, meta) => {
             if (connected) {
+              stopReconnectTimer();
               lobbyStatusDot.classList.add('connected');
               const guestName = (meta && meta.name) ? meta.name : 'Player 2';
               lobbyStatusText.textContent = `${guestName} connected!`;
@@ -631,6 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 player2Name: guestName,
                 mode: 'multiplayer',
                 targetScore,
+                localPlayerIndex: 0,
               });
 
               window.networkManager.sendMessage({
@@ -648,7 +709,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
               lobbyStatusDot.classList.remove('connected');
               lobbyStatusText.textContent = 'Player disconnected.';
-              showToast('Player disconnected');
+              if (currentScreenKey !== 'home' && currentScreenKey !== 'auth' && currentScreenKey !== 'lobby') {
+                startReconnectTimer();
+              } else {
+                showToast('Player disconnected');
+              }
             }
           };
         } catch (err) {
@@ -668,7 +733,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
           await window.networkManager.joinRoom(code, p1Name);
-          showToast('Connected!');
+          displayRoomCode.textContent = code;
+          lobbyStatusDot.classList.add('connected');
+          lobbyStatusText.textContent = 'Connected! Waiting for host to start match...';
+          btnCopyRoomCode.style.display = 'none';
+          showScreen('lobby');
+          showToast('Connected to Host!');
+
+          window.networkManager.onConnectionStatusCallback = (connected) => {
+            if (connected) {
+              stopReconnectTimer();
+            } else {
+              if (currentScreenKey !== 'home' && currentScreenKey !== 'auth' && currentScreenKey !== 'lobby') {
+                startReconnectTimer();
+              } else {
+                showToast('Disconnected from host.');
+                showScreen('home');
+              }
+            }
+          };
         } catch (err) {
           alert('Failed to connect: ' + err.message);
           btnStartMatch.disabled = false;
@@ -712,7 +795,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   btnProceedToSinger.addEventListener('click', () => {
-    setupSingerScreen();
+    if (window.gameEngine.mode === 'multiplayer') {
+      if (window.gameEngine.isMyTurnToSing) {
+        setupSingerScreen();
+      } else {
+        setupGuesserWaitingScreen();
+      }
+    } else {
+      setupSingerScreen();
+    }
   });
 
   // ==========================================================================
@@ -721,14 +812,47 @@ document.addEventListener('DOMContentLoaded', () => {
   function setupSingerScreen() {
     const singer = window.gameEngine.singer;
     singerTitle.textContent = `${singer.name}, Sing!`;
+    if (singerSubtitle) singerSubtitle.textContent = 'Sing a short lyric or catchy chorus';
     singerTimer.textContent = '00:00';
     singerRecordHint.textContent = 'Tap microphone to begin';
     singerPreviewSection.style.display = 'none';
+    if (singerRecordSection) singerRecordSection.style.display = 'flex';
+    if (guesserWaitingSingerCard) guesserWaitingSingerCard.style.display = 'none';
+    if (singerWaitingGuesserCard) singerWaitingGuesserCard.style.display = 'none';
     btnSingerRecord.classList.remove('recording');
     btnSingerRecord.style.display = 'flex';
     isSingerRecording = false;
 
     showScreen('singer');
+  }
+
+  function setupGuesserWaitingScreen() {
+    const singer = window.gameEngine.singer;
+    singerTitle.textContent = `${singer.name} is Singing...`;
+    if (singerSubtitle) singerSubtitle.textContent = 'Listen carefully once they reverse and send the audio!';
+    if (singerRecordSection) singerRecordSection.style.display = 'none';
+    if (singerPreviewSection) singerPreviewSection.style.display = 'none';
+    if (singerWaitingGuesserCard) singerWaitingGuesserCard.style.display = 'none';
+    if (guesserWaitingSingerCard) {
+      guesserWaitingSingerCard.style.display = 'flex';
+      if (guesserWaitingTitle) guesserWaitingTitle.textContent = `${singer.name} is Singing...`;
+      if (guesserWaitingSubtitle) guesserWaitingSubtitle.textContent = 'Listen carefully once the reversed audio is sent!';
+    }
+    showScreen('singer');
+  }
+
+  function setupSingerWaitingForGuesserScreen() {
+    const guesser = window.gameEngine.guesser;
+    singerTitle.textContent = 'Waiting for Guesser...';
+    if (singerSubtitle) singerSubtitle.textContent = 'Your reversed audio was sent';
+    if (singerRecordSection) singerRecordSection.style.display = 'none';
+    if (singerPreviewSection) singerPreviewSection.style.display = 'none';
+    if (guesserWaitingSingerCard) guesserWaitingSingerCard.style.display = 'none';
+    if (singerWaitingGuesserCard) {
+      singerWaitingGuesserCard.style.display = 'flex';
+      if (singerWaitingTitle) singerWaitingTitle.textContent = 'Audio Sent to Guesser!';
+      if (singerWaitingSubtitle) singerWaitingSubtitle.textContent = `${guesser.name} is listening and decoding backwards...`;
+    }
   }
 
   btnSingerRecord.addEventListener('click', async () => {
@@ -799,7 +923,10 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const reversedWavBlob = window.audioManager.bufferToWavBlob(window.gameEngine.roundData.reversedBuffer);
         await window.networkManager.sendAudio('REVERSED_AUDIO_PAYLOAD', reversedWavBlob);
-        btnSingerSubmit.querySelector('span').textContent = 'Sent! Waiting for guesser...';
+        btnSingerSubmit.disabled = false;
+        btnSingerSubmit.querySelector('span').textContent = 'Send to Guesser';
+        setupSingerWaitingForGuesserScreen();
+        showToast('Audio sent to Guesser!');
       } catch (err) {
         alert('Failed to transmit audio: ' + err.message);
         btnSingerSubmit.disabled = false;
@@ -827,6 +954,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function setupGuesserScreen() {
     const guesser = window.gameEngine.guesser;
     guesserTitle.textContent = `${guesser.name}, Decode!`;
+
+    if (guesserMainControls) guesserMainControls.style.display = 'flex';
+    if (guesserWaitingVerdictCard) guesserWaitingVerdictCard.style.display = 'none';
 
     btnGuesserMimicRecord.querySelector('span').textContent = 'Record Mimic';
     mimicStatusText.textContent = 'Not recorded yet';
@@ -914,6 +1044,13 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         window.networkManager.sendMessage({ type: 'GUESSER_READY_FOR_VERDICT' });
       }
+      if (guesserMainControls) guesserMainControls.style.display = 'none';
+      if (guesserWaitingVerdictCard) {
+        guesserWaitingVerdictCard.style.display = 'flex';
+        if (guesserVerdictSubtitle) {
+          guesserVerdictSubtitle.textContent = `Waiting for ${window.gameEngine.singer.name} to score your answer...`;
+        }
+      }
       showToast('Guess submitted! Waiting for verdict...');
     }
   });
@@ -940,6 +1077,25 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function handleVerdict(gotIt) {
+    if (window.gameEngine.mode === 'multiplayer') {
+      if (!window.networkManager.isHost) {
+        // Guest is the Singer: send verdict to Host to authoritatively apply and broadcast
+        window.networkManager.sendMessage({
+          type: 'SUBMIT_VERDICT',
+          gotIt,
+        });
+        showToast('Verdict sent to host...');
+        btnVerdictGot.disabled = true;
+        btnVerdictNotGot.disabled = true;
+        return;
+      }
+    }
+
+    // Host or Pass & Play: apply authoritative verdict
+    applyAuthoritativeVerdict(gotIt);
+  }
+
+  function applyAuthoritativeVerdict(gotIt) {
     const guesser = window.gameEngine.guesser;
     const singer = window.gameEngine.singer;
     const result = window.gameEngine.applyVerdict(gotIt);
@@ -968,6 +1124,9 @@ document.addEventListener('DOMContentLoaded', () => {
         winner: result.winner ? result.winner.name : null,
       });
     }
+
+    btnVerdictGot.disabled = false;
+    btnVerdictNotGot.disabled = false;
 
     setTimeout(() => {
       if (result.winner) {
@@ -1031,16 +1190,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   btnPlayAgain.addEventListener('click', () => {
-    window.gameEngine.startNewMatch({
-      player1Name: window.gameEngine.players[0].name,
-      player2Name: window.gameEngine.players[1].name,
-      mode: window.gameEngine.mode,
-      targetScore: window.gameEngine.targetScore,
-    });
-    initiateCoinFlip();
+    if (window.gameEngine.mode === 'multiplayer') {
+      if (window.networkManager.isHost) {
+        window.gameEngine.startNewMatch({
+          player1Name: window.gameEngine.players[0].name,
+          player2Name: window.gameEngine.players[1].name,
+          mode: 'multiplayer',
+          targetScore: window.gameEngine.targetScore,
+          localPlayerIndex: 0,
+        });
+        window.networkManager.sendMessage({ type: 'RESTART_MATCH' });
+        initiateCoinFlip();
+      } else {
+        window.networkManager.sendMessage({ type: 'REQUEST_REMATCH' });
+        showToast('Rematch request sent to Host...');
+      }
+    } else {
+      window.gameEngine.startNewMatch({
+        player1Name: window.gameEngine.players[0].name,
+        player2Name: window.gameEngine.players[1].name,
+        mode: window.gameEngine.mode,
+        targetScore: window.gameEngine.targetScore,
+      });
+      initiateCoinFlip();
+    }
   });
 
   btnBackToHome.addEventListener('click', () => {
+    stopReconnectTimer();
     if (window.gameEngine.mode === 'multiplayer') {
       window.networkManager.disconnect();
     }
@@ -1061,6 +1238,7 @@ document.addEventListener('DOMContentLoaded', () => {
           player2Name,
           mode: 'multiplayer',
           targetScore,
+          localPlayerIndex: 1,
         });
         showToast('Game started by Host');
         break;
@@ -1111,6 +1289,14 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
       }
 
+      case 'SUBMIT_VERDICT': {
+        // Host receives verdict from Guest Singer
+        if (window.networkManager.isHost) {
+          applyAuthoritativeVerdict(data.gotIt);
+        }
+        break;
+      }
+
       case 'VERDICT_SYNC': {
         window.gameEngine.players[0].score = data.scores[0];
         window.gameEngine.players[1].score = data.scores[1];
@@ -1127,8 +1313,40 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
           if (data.winner) {
             declareWinner({ name: data.winner, score: Math.max(...data.scores) });
+          } else {
+            // Guesser is waiting for Host to send the next ROUND_ASSIGNMENT
+            if (!window.networkManager.isHost) {
+              showToast('Preparing next round...');
+            }
           }
         }, 1600);
+        break;
+      }
+
+      case 'REQUEST_REMATCH': {
+        if (window.networkManager.isHost) {
+          window.gameEngine.startNewMatch({
+            player1Name: window.gameEngine.players[0].name,
+            player2Name: window.gameEngine.players[1].name,
+            mode: 'multiplayer',
+            targetScore: window.gameEngine.targetScore,
+            localPlayerIndex: 0,
+          });
+          window.networkManager.sendMessage({ type: 'RESTART_MATCH' });
+          initiateCoinFlip();
+        }
+        break;
+      }
+
+      case 'RESTART_MATCH': {
+        window.gameEngine.startNewMatch({
+          player1Name: window.gameEngine.players[0].name,
+          player2Name: window.gameEngine.players[1].name,
+          mode: 'multiplayer',
+          targetScore: window.gameEngine.targetScore,
+          localPlayerIndex: 1,
+        });
+        showToast('Rematch started by Host!');
         break;
       }
     }

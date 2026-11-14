@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#000000" />
   <meta name="format-detection" content="telephone=no" />
   <title>Reverse Song Battle</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=4" />
   <!-- External CDNs for Serverless WebRTC, Supabase Client & Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -29,6 +29,21 @@
       <div class="ios-alert-actions">
         <button type="button" class="ios-alert-btn" id="btn-alert-cancel">Cancel</button>
         <button type="button" class="ios-alert-btn destructive" id="btn-alert-confirm">Leave Match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS Reconnection Grace Period Modal (30s Countdown) -->
+  <div class="ios-modal-overlay" id="reconnect-modal-overlay">
+    <div class="ios-alert-box">
+      <div class="ios-alert-content">
+        <h3 class="ios-alert-title" id="reconnect-title">Connection Lost</h3>
+        <p class="ios-alert-message" id="reconnect-message">
+          Opponent disconnected. Waiting to reconnect... (<span id="reconnect-countdown" style="font-weight: 700; color: var(--ios-blue);">30</span>s)
+        </p>
+      </div>
+      <div class="ios-alert-actions">
+        <button type="button" class="ios-alert-btn destructive" id="btn-reconnect-leave">Leave Match</button>
       </div>
     </div>
   </div>
@@ -321,9 +336,9 @@
     <!-- SCREEN 4: Singer Recording Phase -->
     <div class="screen" id="screen-singer">
       <h2 class="screen-title" id="singer-title">Sing a Song</h2>
-      <p class="screen-subtitle">Sing a short lyric or catchy chorus</p>
+      <p class="screen-subtitle" id="singer-subtitle">Sing a short lyric or catchy chorus</p>
 
-      <div class="record-section">
+      <div class="record-section" id="singer-record-section">
         <button type="button" class="btn-record" id="btn-singer-record" aria-label="Record Audio">
           <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
         </button>
@@ -354,6 +369,24 @@
           </button>
         </div>
       </div>
+
+      <!-- Waiting card for Guesser while Singer is singing (Multiplayer) -->
+      <div class="waiting-card" id="guesser-waiting-singer-card" style="display: none;">
+        <div class="waiting-pulsing-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+        </div>
+        <h3 class="waiting-title" id="guesser-waiting-title">Singer is Recording</h3>
+        <p class="waiting-subtitle" id="guesser-waiting-subtitle">Listen carefully once the reversed audio is sent!</p>
+      </div>
+
+      <!-- Waiting card for Singer after sending reversed audio (Multiplayer) -->
+      <div class="waiting-card" id="singer-waiting-guesser-card" style="display: none;">
+        <div class="waiting-pulsing-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        </div>
+        <h3 class="waiting-title" id="singer-waiting-title">Audio Sent to Guesser</h3>
+        <p class="waiting-subtitle" id="singer-waiting-subtitle">Guesser is listening and decoding backwards...</p>
+      </div>
     </div>
 
     <!-- SCREEN 5: Pass the Phone Curtain (Pass & Play Only) -->
@@ -371,53 +404,64 @@
     <!-- SCREEN 6: Guesser Phase (Reverse Audio & Mimic Verification) -->
     <div class="screen" id="screen-guesser">
       <h2 class="screen-title" id="guesser-title">Decode the Song</h2>
-      <p class="screen-subtitle">Listen to the reversed audio clip</p>
+      <p class="screen-subtitle" id="guesser-subtitle">Listen to the reversed audio clip</p>
 
-      <!-- Primary Reversed Audio Player -->
-      <div class="audio-action-card">
-        <div class="audio-action-header">
-          <span class="audio-action-title">
-            <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-            Reversed Clip
-          </span>
-          <div class="playback-controls">
-            <button type="button" class="speed-toggle active" id="btn-speed-normal">1.0x</button>
-            <button type="button" class="speed-toggle" id="btn-speed-slow">0.75x</button>
+      <div id="guesser-main-controls" style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Primary Reversed Audio Player -->
+        <div class="audio-action-card">
+          <div class="audio-action-header">
+            <span class="audio-action-title">
+              <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+              Reversed Clip
+            </span>
+            <div class="playback-controls">
+              <button type="button" class="speed-toggle active" id="btn-speed-normal">1.0x</button>
+              <button type="button" class="speed-toggle" id="btn-speed-slow">0.75x</button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-play-reversed">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span>Play Reversed Song</span>
+          </button>
+        </div>
+
+        <!-- Mimicry Verification Section -->
+        <div class="mimic-box">
+          <div class="mimic-box-header">
+            <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+            <span>Mimic Verification</span>
+          </div>
+          <p style="font-size: 13px; color: var(--ios-secondary-label); line-height: 1.35;">
+            Sing the backward sounds you hear. Then play your mimic in reverse to check the real forward words!
+          </p>
+
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-guesser-mimic-record" style="width: auto;">
+              <span>Record Mimic</span>
+            </button>
+            <span style="font-size: 12px; color: var(--ios-tertiary-label);" id="mimic-status-text">Not recorded yet</span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-play-mimic-rereversed" style="display: none; width: auto; color: var(--ios-blue);">
+              <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+              <span>Play Mimic Forward</span>
+            </button>
           </div>
         </div>
-        <button type="button" class="btn btn-primary" id="btn-play-reversed">
-          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          <span>Play Reversed Song</span>
+
+        <!-- Ready to guess button -->
+        <button type="button" class="btn btn-primary" id="btn-guesser-ready-to-score">
+          <span>Proceed to Scoring</span>
+          <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
         </button>
       </div>
 
-      <!-- Mimicry Verification Section -->
-      <div class="mimic-box">
-        <div class="mimic-box-header">
-          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
-          <span>Mimic Verification</span>
+      <!-- Waiting card for Guesser after submitting guess (Multiplayer) -->
+      <div class="waiting-card" id="guesser-waiting-verdict-card" style="display: none;">
+        <div class="waiting-pulsing-icon">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
         </div>
-        <p style="font-size: 13px; color: var(--ios-secondary-label); line-height: 1.35;">
-          Sing the backward sounds you hear. Then play your mimic in reverse to check the real forward words!
-        </p>
-
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-guesser-mimic-record" style="width: auto;">
-            <span>Record Mimic</span>
-          </button>
-          <span style="font-size: 12px; color: var(--ios-tertiary-label);" id="mimic-status-text">Not recorded yet</span>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-play-mimic-rereversed" style="display: none; width: auto; color: var(--ios-blue);">
-            <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-            <span>Play Mimic Forward</span>
-          </button>
-        </div>
+        <h3 class="waiting-title">Guess Submitted!</h3>
+        <p class="waiting-subtitle" id="guesser-verdict-subtitle">Waiting for the singer to score your answer...</p>
       </div>
-
-      <!-- Ready to guess button -->
-      <button type="button" class="btn btn-primary" id="btn-guesser-ready-to-score">
-        <span>Proceed to Scoring</span>
-        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
-      </button>
     </div>
 
     <!-- SCREEN 7: Scoring Verdict Phase -->
@@ -473,10 +517,10 @@
   </div>
 
   <!-- Application Logic Scripts -->
-  <script src="js/supabase-config.js?v=3"></script>
-  <script src="js/audio.js?v=3"></script>
-  <script src="js/game.js?v=3"></script>
-  <script src="js/network.js?v=3"></script>
-  <script src="js/app.js?v=3"></script>
+  <script src="js/supabase-config.js?v=4"></script>
+  <script src="js/audio.js?v=4"></script>
+  <script src="js/game.js?v=4"></script>
+  <script src="js/network.js?v=4"></script>
+  <script src="js/app.js?v=4"></script>
 </body>
 </html>

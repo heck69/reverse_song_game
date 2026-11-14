@@ -915,3 +915,56 @@ input, textarea, select {
   fill: currentColor;
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+   Multiplayer Waiting Cards & Pulsing Animations
+   ========================================================================== */
+.waiting-card {
+  background: var(--ios-card);
+  border: 0.5px solid var(--ios-border);
+  border-radius: var(--radius-card);
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin: 14px 0;
+  animation: fadeIn 0.3s var(--spring-easing);
+}
+
+.waiting-pulsing-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--ios-blue-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: waitingPulse 1.8s infinite ease-in-out;
+}
+
+.waiting-pulsing-icon svg {
+  width: 30px;
+  height: 30px;
+  fill: var(--ios-blue);
+}
+
+@keyframes waitingPulse {
+  0% { transform: scale(0.94); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.4); }
+  70% { transform: scale(1.06); box-shadow: 0 0 0 16px rgba(10, 132, 255, 0); }
+  100% { transform: scale(0.94); box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); }
+}
+
+.waiting-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ios-label);
+}
+
+.waiting-subtitle {
+  font-size: 14px;
+  color: var(--ios-secondary-label);
+  line-height: 1.4;
+  max-width: 300px;
+}

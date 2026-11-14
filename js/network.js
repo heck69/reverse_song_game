@@ -13,6 +13,17 @@ class NetworkManager {
     this.onMessageCallback = null;
     this.onConnectionStatusCallback = null;
     this.prefix = 'revsong-v1-';
+    this.incomingChunks = new Map();
+    this.peerConfig = {
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
+    };
   }
 
   /**
@@ -38,9 +49,7 @@ class NetworkManager {
     const peerId = this.prefix + this.roomCode;
 
     return new Promise((resolve, reject) => {
-      this.peer = new Peer(peerId, {
-        debug: 1,
-      });
+      this.peer = new Peer(peerId, this.peerConfig);
 
       this.peer.on('open', (id) => {
         resolve(this.roomCode);
@@ -72,9 +81,7 @@ class NetworkManager {
     const hostPeerId = this.prefix + this.roomCode;
 
     return new Promise((resolve, reject) => {
-      this.peer = new Peer({
-        debug: 1,
-      });
+      this.peer = new Peer(this.peerConfig);
 
       this.peer.on('open', (id) => {
         const conn = this.peer.connect(hostPeerId, {
@@ -127,6 +134,10 @@ class NetworkManager {
 
     this.conn.on('error', (err) => {
       console.error('Connection error:', err);
+      this.isConnected = false;
+      if (this.onConnectionStatusCallback) {
+        this.onConnectionStatusCallback(false, err);
+      }
     });
   }
 
@@ -142,18 +153,37 @@ class NetworkManager {
   }
 
   /**
-   * Send audio blob or buffer converted to Base64 data URI.
+   * Send audio blob or buffer chunked into 32KB packets to avoid WebRTC DataChannel packet limits.
    */
   async sendAudio(type, blob) {
     const reader = new FileReader();
     return new Promise((resolve, reject) => {
-      reader.onloadend = () => {
-        const base64data = reader.result;
-        this.sendMessage({
-          type: type,
-          audioDataUri: base64data,
-        });
-        resolve();
+      reader.onloadend = async () => {
+        try {
+          const base64data = reader.result;
+          const transferId = 'aud_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+          const CHUNK_SIZE = 32 * 1024; // 32KB chunks
+          const totalChunks = Math.ceil(base64data.length / CHUNK_SIZE);
+
+          for (let i = 0; i < totalChunks; i++) {
+            const chunk = base64data.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+            this.sendMessage({
+              type: 'AUDIO_CHUNK',
+              transferId,
+              audioType: type,
+              index: i,
+              totalChunks,
+              data: chunk,
+            });
+            // Small microtask yield every 4 chunks to avoid buffer congestion
+            if (i % 4 === 0 && i > 0) {
+              await new Promise((r) => setTimeout(r, 10));
+            }
+          }
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
@@ -161,9 +191,43 @@ class NetworkManager {
   }
 
   /**
-   * Route incoming data to the registered app callback.
+   * Route incoming data to the registered app callback, with reassembly of chunked audio.
    */
   handleIncomingData(data) {
+    if (!data) return;
+
+    // Handle chunked audio packets
+    if (data.type === 'AUDIO_CHUNK') {
+      const { transferId, audioType, index, totalChunks, data: chunkData } = data;
+      if (!this.incomingChunks.has(transferId)) {
+        this.incomingChunks.set(transferId, {
+          audioType,
+          totalChunks,
+          receivedCount: 0,
+          chunks: new Array(totalChunks),
+        });
+      }
+
+      const transfer = this.incomingChunks.get(transferId);
+      if (!transfer.chunks[index]) {
+        transfer.chunks[index] = chunkData;
+        transfer.receivedCount++;
+      }
+
+      // If all chunks received, reassemble and dispatch full payload
+      if (transfer.receivedCount === transfer.totalChunks) {
+        const fullAudioDataUri = transfer.chunks.join('');
+        this.incomingChunks.delete(transferId);
+        if (this.onMessageCallback) {
+          this.onMessageCallback({
+            type: transfer.audioType,
+            audioDataUri: fullAudioDataUri,
+          });
+        }
+      }
+      return;
+    }
+
     if (this.onMessageCallback) {
       this.onMessageCallback(data);
     }

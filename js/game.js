@@ -7,6 +7,7 @@
 class GameEngine {
   constructor() {
     this.mode = 'pass_play'; // 'pass_play' or 'multiplayer'
+    this.localPlayerIndex = null; // 0 for Host, 1 for Guest, null for pass_play
     this.targetScore = 5; // 0 means endless
     this.players = [
       { id: 0, name: 'Player 1', score: 0 },
@@ -40,11 +41,34 @@ class GameEngine {
     return this.players[this.currentGuesserIndex];
   }
 
+  get isMyTurnToSing() {
+    if (this.mode !== 'multiplayer' || this.localPlayerIndex === null) return true;
+    return this.currentSingerIndex === this.localPlayerIndex;
+  }
+
+  get isMyTurnToGuess() {
+    if (this.mode !== 'multiplayer' || this.localPlayerIndex === null) return true;
+    return this.currentGuesserIndex === this.localPlayerIndex;
+  }
+
+  get myPlayer() {
+    if (this.localPlayerIndex === null) return null;
+    return this.players[this.localPlayerIndex];
+  }
+
+  get opponentPlayer() {
+    if (this.localPlayerIndex === null) return null;
+    return this.players[1 - this.localPlayerIndex];
+  }
+
   /**
    * Initialize a new match with player names and target score.
    */
-  startNewMatch({ player1Name, player2Name, mode = 'pass_play', targetScore = 5 }) {
+  startNewMatch({ player1Name, player2Name, mode = 'pass_play', targetScore = 5, localPlayerIndex = null }) {
     this.mode = mode;
+    if (localPlayerIndex !== null) {
+      this.localPlayerIndex = localPlayerIndex;
+    }
     this.targetScore = parseInt(targetScore, 10);
     this.players[0].name = player1Name.trim() || 'Player 1';
     this.players[0].score = 0;

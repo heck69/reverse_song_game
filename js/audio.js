@@ -224,32 +224,51 @@ class AudioManager {
   }
 
   /**
-   * Encodes an AudioBuffer into a WAV Blob (for easy network transmission and saving).
+   * Encodes an AudioBuffer into an optimized mono WAV Blob (downsampled to 22.05kHz for reliable WebRTC transmission).
    * @param {AudioBuffer} buffer
+   * @param {number} [targetSampleRate=22050]
    * @returns {Blob}
    */
-  bufferToWavBlob(buffer) {
-    const numChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const format = 1; // PCM
+  bufferToWavBlob(buffer, targetSampleRate = 22050) {
+    const numChannels = 1; // Always mono for voice transmission
+    const srcSampleRate = buffer.sampleRate;
     const bitDepth = 16;
+    const format = 1; // PCM
 
-    let interleaved;
-    if (numChannels === 2) {
+    // Mixdown to mono
+    const srcLength = buffer.length;
+    const mono = new Float32Array(srcLength);
+    if (buffer.numberOfChannels > 1) {
       const left = buffer.getChannelData(0);
       const right = buffer.getChannelData(1);
-      interleaved = new Float32Array(left.length + right.length);
-      for (let i = 0; i < left.length; i++) {
-        interleaved[i * 2] = left[i];
-        interleaved[i * 2 + 1] = right[i];
+      for (let i = 0; i < srcLength; i++) {
+        mono[i] = (left[i] + right[i]) * 0.5;
       }
     } else {
-      interleaved = buffer.getChannelData(0);
+      mono.set(buffer.getChannelData(0));
+    }
+
+    // Resample if source sample rate differs from target
+    let samples;
+    let outSampleRate = targetSampleRate;
+    if (srcSampleRate === targetSampleRate) {
+      samples = mono;
+    } else {
+      const ratio = srcSampleRate / targetSampleRate;
+      const outLength = Math.max(1, Math.round(srcLength / ratio));
+      samples = new Float32Array(outLength);
+      for (let i = 0; i < outLength; i++) {
+        const srcPos = i * ratio;
+        const index0 = Math.floor(srcPos);
+        const index1 = Math.min(srcLength - 1, index0 + 1);
+        const frac = srcPos - index0;
+        samples[i] = mono[index0] * (1 - frac) + mono[index1] * frac;
+      }
     }
 
     const bytesPerSample = bitDepth / 8;
     const blockAlign = numChannels * bytesPerSample;
-    const dataSize = interleaved.length * bytesPerSample;
+    const dataSize = samples.length * bytesPerSample;
     const bufferSize = 44 + dataSize;
     const arrayBuffer = new ArrayBuffer(bufferSize);
     const view = new DataView(arrayBuffer);
@@ -268,8 +287,8 @@ class AudioManager {
     view.setUint32(16, 16, true); // SubChunk1Size (16 for PCM)
     view.setUint16(20, format, true);
     view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true); // ByteRate
+    view.setUint32(24, outSampleRate, true);
+    view.setUint32(28, outSampleRate * blockAlign, true); // ByteRate
     view.setUint16(32, blockAlign, true);
     view.setUint16(34, bitDepth, true);
     writeString(36, 'data');
@@ -277,8 +296,8 @@ class AudioManager {
 
     // Write PCM 16-bit samples
     let offset = 44;
-    for (let i = 0; i < interleaved.length; i++) {
-      let s = Math.max(-1, Math.min(1, interleaved[i]));
+    for (let i = 0; i < samples.length; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
       s = s < 0 ? s * 0x8000 : s * 0x7fff;
       view.setInt16(offset, s, true);
       offset += 2;
